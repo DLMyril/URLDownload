@@ -3,7 +3,8 @@ program UrlDownload;
 uses
   Vcl.Forms,
   MainForm in 'MainForm.pas' {frmMain},
-  MainData in 'MainData.pas' {dmMain: TDataModule};
+  MainData in 'MainData.pas' {dmMain: TDataModule},
+  URLFileUnit in 'URLFileUnit.pas';
 
 {$R *.res}
 
