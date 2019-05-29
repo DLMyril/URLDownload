@@ -1,0 +1,36 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{FF2A3164-F6FC-4D7F-9A64-A423D261EBA6}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="UrlDownload.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="UrlDownload">
+        <MSBuild Projects="UrlDownload.dproj"/>
+    </Target>
+    <Target Name="UrlDownload:Clean">
+        <MSBuild Projects="UrlDownload.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="UrlDownload:Make">
+        <MSBuild Projects="UrlDownload.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="UrlDownload"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="UrlDownload:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="UrlDownload:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
