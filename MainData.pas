@@ -3,7 +3,8 @@ unit MainData;
 interface
 
 uses
-  System.SysUtils, System.Classes, Vcl.Menus, System.Actions, Vcl.ActnList, clMultiDC, clSingleDC;
+  System.SysUtils, System.Classes, Vcl.Menus, System.Actions, Vcl.ActnList, clMultiDC, clSingleDC,
+  Vcl.Dialogs;
 
 type
   TdmMain = class(TDataModule)
@@ -14,9 +15,14 @@ type
     miDownloadStart: TMenuItem;
     acExit: TAction;
     miExit: TMenuItem;
+    acSaveResult: TAction;
+    dlgSave: TSaveDialog;
     procedure acScanUpdate(Sender: TObject);
     procedure DataModuleCreate(Sender: TObject);
     procedure DataModuleDestroy(Sender: TObject);
+    procedure acSaveResultExecute(Sender: TObject);
+    procedure acScanExecute(Sender: TObject);
+    procedure acExitExecute(Sender: TObject);
   private
     fSearchPattern: string;
     HasChanged: boolean;
@@ -42,9 +48,27 @@ uses MainForm, URLFileUnit;
 var
   Manager: TURLFileManager;
 
+procedure TdmMain.acExitExecute(Sender: TObject);
+begin
+  frmMain.Close;
+end;
+
+procedure TdmMain.acSaveResultExecute(Sender: TObject);
+begin
+  if dlgSave.Execute then begin
+    Manager.CSV.SaveToFile(dlgSave.FileName);
+  end;
+end;
+
+procedure TdmMain.acScanExecute(Sender: TObject);
+begin
+  UrlList.Text := frmMain.mmoUrl.Lines.Text;
+  StartDownload;
+end;
+
 procedure TdmMain.acScanUpdate(Sender: TObject);
 begin
-  UpdateDisplay;
+//  UpdateDisplay;
 end;
 
 procedure TdmMain.DataModuleCreate(Sender: TObject);
@@ -80,6 +104,7 @@ begin
   end;
   HasChanged := True;
   UpdateDisplay;
+  Manager.StartDownload;
 end;
 
 procedure TdmMain.UpdateDisplay;

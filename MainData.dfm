@@ -10,10 +10,18 @@ object dmMain: TdmMain
     object acScan: TAction
       Category = 'Downloads'
       Caption = '&Scan'
+      OnExecute = acScanExecute
       OnUpdate = acScanUpdate
     end
     object acExit: TAction
+      Category = 'Files'
       Caption = 'E&xit'
+      OnExecute = acExitExecute
+    end
+    object acSaveResult: TAction
+      Category = 'Files'
+      Caption = 'Save &Results'
+      OnExecute = acSaveResultExecute
     end
   end
   object mnuMain: TMainMenu
@@ -28,5 +36,11 @@ object dmMain: TdmMain
     object miExit: TMenuItem
       Action = acExit
     end
+  end
+  object dlgSave: TSaveDialog
+    DefaultExt = '.csv'
+    FileName = 'DownloadResult.csv'
+    Left = 24
+    Top = 72
   end
 end

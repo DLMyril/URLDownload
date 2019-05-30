@@ -2,7 +2,7 @@ object frmMain: TfrmMain
   Left = 0
   Top = 0
   Caption = 'URL Downloader'
-  ClientHeight = 524
+  ClientHeight = 571
   ClientWidth = 936
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -13,6 +13,7 @@ object frmMain: TfrmMain
   Menu = dmMain.mnuMain
   OldCreateOrder = False
   OnCreate = FormCreate
+  OnShow = FormShow
   PixelsPerInch = 96
   TextHeight = 13
   object mmoUrl: TMemo
@@ -20,7 +21,12 @@ object frmMain: TfrmMain
     Top = 32
     Width = 345
     Height = 457
+    Lines.Strings = (
+      'C:\Proj\UrlDownload\Test1.html'
+      'C:\Proj\UrlDownload\Test2.html'
+      'C:\Proj\UrlDownload\Test3.html')
     TabOrder = 0
+    OnChange = mmoUrlChange
   end
   object btnStart: TButton
     Left = 96
@@ -67,7 +73,7 @@ object frmMain: TfrmMain
     ViewStyle = vsReport
   end
   object lePattern: TLabeledEdit
-    Left = 592
+    Left = 480
     Top = 497
     Width = 121
     Height = 21
@@ -79,5 +85,13 @@ object frmMain: TfrmMain
     TabOrder = 3
     Text = 'div'
     OnChange = lePatternChange
+  end
+  object btnSaveResult: TButton
+    Left = 672
+    Top = 495
+    Width = 177
+    Height = 25
+    Action = dmMain.acSaveResult
+    TabOrder = 4
   end
 end

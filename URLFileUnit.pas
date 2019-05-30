@@ -22,15 +22,16 @@ type
     property Status: TUrlFileStatus read fStatus write fStatus;
     constructor Create(AURL, ADest, APattern: string);
     function CountPatterns(APattern: string): integer; // sets fCount
+    procedure CopyTo(Destination: TUrlFileInfo);
   end;
   
   TUrlThread = class(TThread)
   private
     fFileInfo: TUrlFileInfo;
     fLock: TCriticalSection;
-    fPattern: string;
   public
-    constructor Create(AUrlFile: TUrlFileInfo; ALock: TCriticalSection);
+    constructor Create(AUrlFileInfo: TUrlFileInfo; ALock: TCriticalSection);
+    destructor Destroy; override;
     procedure Execute; override;
   end;
 
@@ -55,7 +56,7 @@ type
     destructor Destroy; override;
     procedure AddToDownload(AUrlFileInfo: TUrlFileInfo);
     procedure StartDownload;
-    procedure ReportResults(AFileInfo: TUrlFileInfo);
+    procedure ReportResults(AFileInfo: TUrlFileInfo); // call withing a critical section using CSVLock
   end;
 
 const
@@ -70,17 +71,24 @@ implementation
 uses URLMon, StrUtils;
 
 procedure TURLFileManager.AddToDownload(AUrlFileInfo: TUrlFileInfo);
+var
+  WorkUrlInfo: TUrlFileInfo;
 begin
-  fHasChanged := True; 
-  SetLength(fFileStatus, length(fFileStatus) + 1);
-  fFileStatus[length(fFileStatus) - 1] := AUrlFileInfo;
+  HasChanged := True;
+  WorkUrlInfo := FindUrl(AUrlFileInfo.Url);
+  if not assigned(WorkUrlInfo) then begin // adds a new entry
+    SetLength(fFileStatus, length(fFileStatus) + 1);
+    fFileStatus[length(fFileStatus) - 1] := AUrlFileInfo;
+  end else begin
+    AUrlFileInfo.CopyTo(WorkUrlInfo); // update an existing entry
+  end;
 end;
 
 constructor TURLFileManager.Create;
 begin
   CSVLock := TCriticalSection.Create;
   CSV := TStringList.Create;
-  fHasChanged := False;
+  HasChanged := False;
 end;
 
 destructor TURLFileManager.Destroy;
@@ -98,12 +106,12 @@ end;
 
 function TURLFileManager.FindUrl(AUrl: string): TUrlFileInfo;
 var
-  idx: integer;
+  i, l: integer;
 begin
-  result := nil;
-  idx := 0;
-  while not assigned(result) and (idx < length(fFileStatus)) and (fFileStatus[idx].Url <> AUrl) do inc(idx);
-  if idx <> -1 then result := fFileStatus[idx];
+  i := 0;
+  l := length(fFileStatus);
+  while (i < l) and (fFileStatus[i].Url <> AUrl) do inc(i);
+  if i = l then result := nil else result := fFileStatus[i];
 end;
 
 function TURLFileManager.GetCount: integer;
@@ -122,10 +130,14 @@ begin
   result := fURLFileManager;
 end;
 
-procedure TURLFileManager.ReportResults(AFileInfo: TUrlFileInfo);
+procedure TURLFileManager.ReportResults(AFileInfo: TUrlFileInfo);  // only call inside CriticalSection
+var
+  UpdatedFileInfo: TUrlFileInfo;
 begin
+  UpdatedFileInfo := FindUrl(AFileInfo.Url);
+  AFileInfo.CopyTo(UpdatedFileInfo);
   csv.Add(AFileInfo.Url + ',' + AFileInfo.Pattern +',' + IntToStr(AFileInfo.Count));
-  fHasChanged := True;
+  HasChanged := True;
 end;
 
 procedure TURLFileManager.SetFileStatus(AUrl: string; const Value: TUrlFileInfo);
@@ -133,11 +145,8 @@ var
   FoundFile: TUrlFileInfo;
 begin
   FoundFile := FindUrl(AUrl);
-  if assigned(FoundFile) then begin
-    FoundFile.fUrl := Value.fUrl;
-    FoundFile.fDest := Value.fDest;
-    FoundFile.fCount := Value.fCount;
-    FoundFile.Content.Text := Value.Content.Text;
+  if assigned(Value) and assigned(FoundFile) then begin
+    Value.CopyTo(FoundFile);
   end else begin
     AddToDownload(Value);
   end;
@@ -154,10 +163,22 @@ begin
     Handles[i] := Threads[i].Handle;
     Threads[i].Execute;
   end;
-  fHasChanged := True;
+  HasChanged := True;
 end;                  
 
 { TUrlFileInfo }
+
+procedure TUrlFileInfo.CopyTo(Destination: TUrlFileInfo);
+begin
+  if assigned(Destination) then begin
+    Destination.fUrl := fUrl;
+    Destination.fDest := fDest;
+    Destination.fCount := fCount;
+    Destination.fStatus := fStatus;
+    Destination.fPattern := fPattern;
+    Destination.Content.Text := Content.Text;
+  end;
+end;
 
 function TUrlFileInfo.CountPatterns(APattern: string): integer;
 var
@@ -176,8 +197,7 @@ begin
   until (idx = 0);
   fStatus := ufsCounted;
   result := fCount;
-  if OldCount <> fCount then HasChanged := True;
-  
+  if (OldCount <> fCount) then TUrlFileManager.GetInstance.HasChanged := True;
 end;
 
 constructor TUrlFileInfo.Create(AUrl, ADest, APattern: string);
@@ -191,10 +211,19 @@ end;
 
 { TUrlThread }
 
-constructor TUrlThread.Create(AUrlFile: TUrlFileInfo; ALock: TCriticalSection);
+constructor TUrlThread.Create(AUrlFileInfo: TUrlFileInfo; ALock: TCriticalSection);
 begin
-  fFileInfo := AUrlFile;
+  fFileInfo := TURLFileInfo.Create('','','');
+  AUrlFileInfo.CopyTo(fFileInfo);
   fLock := ALock;
+  inherited Create(False);
+end;
+
+destructor TUrlThread.Destroy;
+begin
+  if assigned(fFileInfo) then fFileInfo.Free;
+  
+  inherited;
 end;
 
 procedure TUrlThread.Execute;
@@ -203,8 +232,8 @@ begin
   fFileInfo.fStatus := ufsRunning;
   if (URLDownloadToFile(nil, PWideChar(fFileInfo.Url), PWideChar(fFileInfo.Dest), 0, nil) = 0) then begin
     fFileInfo.fStatus := ufsDownloaded;
-    fFileInfo.Content.Text := ''; // stub
-    fFileInfo.CountPatterns(fPattern);
+    fFileInfo.Content.LoadFromFile(fFileInfo.Dest);
+    fFileInfo.CountPatterns(fFileInfo.Pattern);
     fLock.Acquire;
     TURLFileManager.GetInstance.ReportResults(fFileInfo);
     fLock.Release;
