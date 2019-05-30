@@ -4,7 +4,7 @@ interface
 
 uses
   System.SysUtils, System.Classes, Vcl.Menus, System.Actions, Vcl.ActnList, clMultiDC, clSingleDC,
-  Vcl.Dialogs;
+  Vcl.Dialogs, clMultiDownLoader;
 
 type
   TdmMain = class(TDataModule)
@@ -17,6 +17,7 @@ type
     miExit: TMenuItem;
     acSaveResult: TAction;
     dlgSave: TSaveDialog;
+    dl: TclMultiDownLoader;
     procedure acScanUpdate(Sender: TObject);
     procedure DataModuleCreate(Sender: TObject);
     procedure DataModuleDestroy(Sender: TObject);
@@ -32,6 +33,7 @@ type
     property SearchPattern: string read fSearchPattern write SetSearchPattern;
     procedure UpdateDisplay;
     procedure StartDownload;
+    procedure DownloadUrl(AUrl, ADest: string);
   end;
 
 var
@@ -84,6 +86,10 @@ begin
   if assigned(UrlList) then UrlList.Free;
 end;
 
+procedure TdmMain.DownloadUrl(AUrl, ADest: string);
+begin
+end;
+
 procedure TdmMain.SetSearchPattern(const Value: string);
 begin
   if fSearchPattern <> Value then begin
@@ -97,15 +103,16 @@ var
   FileInfo: TURLFileInfo;
 begin
   for i := 0 to (UrlList.Count-1) do begin
-    FileInfo := TURLFileInfo.Create(UrlList[i], 
-                ExtractFilePath(ParamStr(0)) + IntToStr(i) + '_' + ExtractFileName(UrlList[i]), 
+    FileInfo := TURLFileInfo.Create(UrlList[i],
+                ExtractFilePath(ParamStr(0)) + ExtractUrlFileName(UrlList[i]),
                 SearchPattern);
     Manager.AddToDownload(FileInfo);
   end;
   HasChanged := True;
   UpdateDisplay;
   Manager.StartDownload;
-end;
+  UpdateDisplay;
+end;                        
 
 procedure TdmMain.UpdateDisplay;
 begin

@@ -2,7 +2,7 @@ unit URLFileUnit;
 
 interface
 
-uses SyncObjs, SysUtils, Classes;
+uses SyncObjs, SysUtils, Classes, IdHttp, URLMon, StrUtils;
 
 type
   TUrlFileStatus = (ufsCreated, ufsRunning, ufsDownloaded, ufsCounted, ufsFinished, ufsError);
@@ -29,11 +29,11 @@ type
   TUrlThread = class(TThread)
   private
     fFileInfo: TUrlFileInfo;
-    fLock: TCriticalSection;
+    fCSVLock: TCriticalSection;
+    fDownLock: TCriticalSection;
   public
-    constructor Create(AUrlFileInfo: TUrlFileInfo; ALock: TCriticalSection);
+    constructor Create(AUrlFileInfo: TUrlFileInfo; ACSVLock, ADownLock: TCriticalSection);
     destructor Destroy; override;
-    function DownloadFile: boolean;
     procedure Execute; override;
   end;
 
@@ -47,6 +47,7 @@ type
     function GetCount: integer;
   public
     CSVLock: TCriticalSection;
+    DownLock: TCriticalSection;                            
     CSV: TStringList;
     Threads: array of TUrlThread;
     Handles: array of THandle;
@@ -59,18 +60,28 @@ type
     procedure AddToDownload(AUrlFileInfo: TUrlFileInfo);
     procedure StartDownload;
     procedure ReportResults(AFileInfo: TUrlFileInfo); // call withing a critical section using CSVLock
+    function DownloadUrl(AFileInfo: TUrlFileInfo): boolean; // call within critical section DownloadLock
   end;
 
 const
   UrlFileStatusStr: array[TUrlFileStatus] of string = 
     ('Created', 'Running', 'Downloaded', 'Counted', 'Finished', 'Error');
    
+   
+function ExtractUrlFileName(const AUrl: string): string;  // normally another unit for utilities would have this.
 
 implementation
 
 { TURLFileManager }
 
-uses URLMon, StrUtils, IdHttp;
+
+function ExtractUrlFileName(const AUrl: string): string;
+var
+  i: Integer;
+begin
+  i := LastDelimiter('\:/', AUrl);
+  Result := Copy(AUrl, i + 1, MaxInt);
+end;
 
 procedure TURLFileManager.AddToDownload(AUrlFileInfo: TUrlFileInfo);
 var
@@ -89,6 +100,7 @@ end;
 constructor TURLFileManager.Create;
 begin
   CSVLock := TCriticalSection.Create;
+  DownLock := TCriticalSection.Create;
   CSV := TStringList.Create;
   HasChanged := False;
 end;
@@ -96,14 +108,23 @@ end;
 destructor TURLFileManager.Destroy;
 begin
   if assigned(CSVLock) then CSVLock.Free;
+  if assigned(DownLock) then DownLock.Free;
   if assigned(CSV) then begin
     while (CSV.Count > 0) do CSV.Delete(0);
     CSV.Free;
   end;
-  
-  if assigned(fURLFileManager) then fURLFileManager := nil;
-  
   inherited;
+end;
+
+function TURLFileManager.DownloadUrl(AFileInfo: TUrlFileInfo): boolean;
+begin    
+  Result := True;
+  try
+    URLDownloadToFile(nil, PWideChar(AFileInfo.Url), PWideChar(AFileInfo.Dest), 0, nil);
+    AFileInfo.Content.LoadFromFile(AFileInfo.Dest);
+  except
+    Result := False;
+  end;
 end;
 
 function TURLFileManager.FindUrl(AUrl: string): TUrlFileInfo;
@@ -161,7 +182,7 @@ begin
   SetLength(Threads, length(fFileStatus));
   SetLength(Handles, length(fFileStatus));
   for i := 0 to (length(fFileStatus)-1) do begin
-    Threads[i] := TUrlThread.Create(fFileStatus[i], CSVLock);
+    Threads[i] := TUrlThread.Create(fFileStatus[i], CSVLock, DownLock);
     Handles[i] := Threads[i].Handle;
     Threads[i].Execute;
   end;
@@ -189,9 +210,9 @@ var
 begin
   OldCount := fCount;
   fCount := 0;
-  idx := 0;
+  idx := 1;
   repeat
-    idx := PosEx(APattern, Content.Text, idx);
+    idx := Pos(APattern, Content.Text, idx);
     if (idx <> 0) then begin                                                             
       inc(fCount);
       inc(idx);
@@ -221,58 +242,36 @@ end;
 
 { TUrlThread }
 
-constructor TUrlThread.Create(AUrlFileInfo: TUrlFileInfo; ALock: TCriticalSection);
+constructor TUrlThread.Create(AUrlFileInfo: TUrlFileInfo; ACSVLock, ADownLock: TCriticalSection);
 begin
   fFileInfo := TURLFileInfo.Create('','','');
   AUrlFileInfo.CopyTo(fFileInfo);
-  fLock := ALock;
+  fCSVLock := ACSVLock;
+  fDownLock := ADownLock;                                                            
   inherited Create(False);
 end;
 
 destructor TUrlThread.Destroy;
 begin
   if assigned(fFileInfo) then fFileInfo.Free;
-  
   inherited;
-end;
-
-function TUrlThread.DownloadFile: boolean;
-var
-  IdHTTP: TIdHTTP;
-  Stream: TMemoryStream;
-begin    
-  Result := True;
-  IdHTTP := TIdHTTP.Create(nil);
-  try
-    Stream := TMemoryStream.Create;
-    try
-      try
-        IdHTTP.Get(fFileInfo.Url, Stream);
-        fFileInfo.Content.LoadFromStream(Stream);
-      except
-        Result := False;
-      end;
-    finally
-      Stream.Free;
-    end;
-  finally
-    IdHTTP.Free;
-  end;
 end;
 
 procedure TUrlThread.Execute;
+var
+  DownloadSuccess: boolean;
 begin
   inherited;
   fFileInfo.fStatus := ufsRunning;
-  if DownloadFile then begin
-//  if (URLDownloadToFile(nil, PWideChar(fFileInfo.Url), PWideChar(fFileInfo.Dest), 0, nil) = 0) then begin
+  fDownLock.Acquire;
+  DownloadSuccess := TURLFileManager.GetInstance.DownloadUrl(fFileInfo);
+  fDownLock.Release;
+  if DownloadSuccess then begin
     fFileInfo.fStatus := ufsDownloaded;
-//    fFileInfo.Content.LoadFromFile(fFileInfo.Dest);
     fFileInfo.CountPatterns(fFileInfo.Pattern);
-    fLock.Acquire;
+    fCSVLock.Acquire;
     TURLFileManager.GetInstance.ReportResults(fFileInfo);
-    fFileInfo.Content.SaveToFile(fFileInfo.Dest);
-    fLock.Release;
+    fCSVLock.Release;
     fFileInfo.fStatus := ufsFinished;
   end else begin
     fFileInfo.fStatus := ufsError;
