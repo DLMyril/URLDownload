@@ -13,6 +13,7 @@ type
     lvResult: TListView;
     lePattern: TLabeledEdit;
     procedure lePatternChange(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
   private
     { Private declarations }
   public
@@ -26,7 +27,17 @@ implementation
 
 {$R *.dfm}
 
+uses URLFileUnit;
+
+var
+  Manager: TURLFileManager;
+                 
 { TfrmMain }
+
+procedure TfrmMain.FormCreate(Sender: TObject);
+begin
+  Manager := TURLFileManager.GetInstance;
+end;
 
 procedure TfrmMain.lePatternChange(Sender: TObject);
 begin
@@ -34,8 +45,23 @@ begin
 end;
 
 procedure TfrmMain.UpdateDisplay;
+var
+  i: integer;
+  li: TListItem;
+  fi: TUrlFileInfo;
 begin
-  // update display based on classes in MainData
-end;
+  lvResult.Items.BeginUpdate;
+  lvResult.Clear;
+  for i := 0 to (mmoUrl.Lines.Count - 1) do begin
+    li := lvResult.Items.Add;
+    fi := Manager.FileStatus[mmoUrl.Lines[i]];
+    li.Caption := mmoUrl.Lines[i];
+    li.SubItems.Add(UrlFileStatusStr[fi.Status]);
+    li.SubItems.Add(fi.Pattern);
+    li.SubItems.Add(IntToStr(fi.Count));
+  end;
+  lvResult.Items.EndUpdate;
+  lvResult.Refresh;
+end;                         
 
 end.

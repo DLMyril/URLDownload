@@ -1,16 +1,12 @@
 object dmMain: TdmMain
   OldCreateOrder = False
   OnCreate = DataModuleCreate
+  OnDestroy = DataModuleDestroy
   Height = 519
   Width = 806
-  object clDownload: TclDownLoader
-    InternetAgent = 'Mozilla/4.0 (compatible; Clever Internet Suite)'
-    Left = 32
-    Top = 24
-  end
   object alMain: TActionList
-    Left = 32
-    Top = 96
+    Left = 24
+    Top = 16
     object acScan: TAction
       Category = 'Downloads'
       Caption = '&Scan'
@@ -21,8 +17,8 @@ object dmMain: TdmMain
     end
   end
   object mnuMain: TMainMenu
-    Left = 88
-    Top = 96
+    Left = 80
+    Top = 16
     object miDownloads: TMenuItem
       Caption = '&Downloads'
       object miDownloadStart: TMenuItem

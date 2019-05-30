@@ -2,8 +2,8 @@ object frmMain: TfrmMain
   Left = 0
   Top = 0
   Caption = 'URL Downloader'
-  ClientHeight = 544
-  ClientWidth = 992
+  ClientHeight = 524
+  ClientWidth = 936
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -12,6 +12,7 @@ object frmMain: TfrmMain
   Font.Style = []
   Menu = dmMain.mnuMain
   OldCreateOrder = False
+  OnCreate = FormCreate
   PixelsPerInch = 96
   TextHeight = 13
   object mmoUrl: TMemo
@@ -32,7 +33,7 @@ object frmMain: TfrmMain
   object lvResult: TListView
     Left = 359
     Top = 8
-    Width = 610
+    Width = 554
     Height = 481
     Columns = <
       item
@@ -45,9 +46,13 @@ object frmMain: TfrmMain
         Caption = 'Status'
       end
       item
+        AutoSize = True
+        Caption = 'Pattern'
+      end
+      item
         Alignment = taRightJustify
         AutoSize = True
-        Caption = 'Search Pattern Count'
+        Caption = 'Pattern Count'
       end>
     Items.ItemData = {
       05DE0000000300000000000000FFFFFFFFFFFFFFFF02000000FFFFFFFF000000
