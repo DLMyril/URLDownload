@@ -21,6 +21,7 @@ type
     property Pattern: string read fPattern write fPattern;
     property Status: TUrlFileStatus read fStatus write fStatus;
     constructor Create(AURL, ADest, APattern: string);
+    destructor Destroy; override;
     function CountPatterns(APattern: string): integer; // sets fCount
     procedure CopyTo(Destination: TUrlFileInfo);
   end;
@@ -32,6 +33,7 @@ type
   public
     constructor Create(AUrlFileInfo: TUrlFileInfo; ALock: TCriticalSection);
     destructor Destroy; override;
+    function DownloadFile: boolean;
     procedure Execute; override;
   end;
 
@@ -68,7 +70,7 @@ implementation
 
 { TURLFileManager }
 
-uses URLMon, StrUtils;
+uses URLMon, StrUtils, IdHttp;
 
 procedure TURLFileManager.AddToDownload(AUrlFileInfo: TUrlFileInfo);
 var
@@ -207,6 +209,14 @@ begin
   fDest := ADest;
   fPattern := APattern;
   fCount := -1;
+  Content := TStringList.Create;
+end;
+
+destructor TUrlFileInfo.Destroy;
+begin
+  if assigned(Content) then Content.Free;
+  
+  inherited;
 end;
 
 { TUrlThread }
@@ -226,16 +236,42 @@ begin
   inherited;
 end;
 
+function TUrlThread.DownloadFile: boolean;
+var
+  IdHTTP: TIdHTTP;
+  Stream: TMemoryStream;
+begin    
+  Result := True;
+  IdHTTP := TIdHTTP.Create(nil);
+  try
+    Stream := TMemoryStream.Create;
+    try
+      try
+        IdHTTP.Get(fFileInfo.Url, Stream);
+        fFileInfo.Content.LoadFromStream(Stream);
+      except
+        Result := False;
+      end;
+    finally
+      Stream.Free;
+    end;
+  finally
+    IdHTTP.Free;
+  end;
+end;
+
 procedure TUrlThread.Execute;
 begin
   inherited;
   fFileInfo.fStatus := ufsRunning;
-  if (URLDownloadToFile(nil, PWideChar(fFileInfo.Url), PWideChar(fFileInfo.Dest), 0, nil) = 0) then begin
+  if DownloadFile then begin
+//  if (URLDownloadToFile(nil, PWideChar(fFileInfo.Url), PWideChar(fFileInfo.Dest), 0, nil) = 0) then begin
     fFileInfo.fStatus := ufsDownloaded;
-    fFileInfo.Content.LoadFromFile(fFileInfo.Dest);
+//    fFileInfo.Content.LoadFromFile(fFileInfo.Dest);
     fFileInfo.CountPatterns(fFileInfo.Pattern);
     fLock.Acquire;
     TURLFileManager.GetInstance.ReportResults(fFileInfo);
+    fFileInfo.Content.SaveToFile(fFileInfo.Dest);
     fLock.Release;
     fFileInfo.fStatus := ufsFinished;
   end else begin

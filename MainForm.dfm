@@ -22,9 +22,8 @@ object frmMain: TfrmMain
     Width = 345
     Height = 457
     Lines.Strings = (
-      'C:\Proj\UrlDownload\Test1.html'
-      'C:\Proj\UrlDownload\Test2.html'
-      'C:\Proj\UrlDownload\Test3.html')
+      'http://www.delphigroups.info/forum/2/15990.html'
+      'http://www.delphigroups.info/2/fb/555413.html')
     TabOrder = 0
     OnChange = mmoUrlChange
   end
