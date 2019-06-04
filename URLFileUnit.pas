@@ -2,7 +2,7 @@ unit URLFileUnit;
 
 interface
 
-uses SyncObjs, SysUtils, Classes, IdHttp, URLMon, StrUtils;
+uses SyncObjs, SysUtils, Classes,{ IdHttp,} URLMon, StrUtils;
 
 type
   TUrlFileStatus = (ufsCreated, ufsRunning, ufsDownloaded, ufsCounted, ufsFinished, ufsError);

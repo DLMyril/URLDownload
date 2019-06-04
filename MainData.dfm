@@ -43,13 +43,4 @@ object dmMain: TdmMain
     Left = 24
     Top = 72
   end
-  object dl: TclMultiDownLoader
-    InternetAgent = 'Mozilla/4.0 (compatible; Clever Internet Suite)'
-    DownLoadList = <
-      item
-      end>
-    GrabOptions = [gaGrabAll, gaReplaceExisting]
-    Left = 304
-    Top = 312
-  end
 end

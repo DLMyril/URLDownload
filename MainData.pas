@@ -3,8 +3,8 @@ unit MainData;
 interface
 
 uses
-  System.SysUtils, System.Classes, Vcl.Menus, System.Actions, Vcl.ActnList, clMultiDC, clSingleDC,
-  Vcl.Dialogs, clMultiDownLoader;
+  System.SysUtils, System.Classes, Vcl.Menus, System.Actions, Vcl.ActnList, {clMultiDC, clSingleDC,}
+  Vcl.Dialogs{, clMultiDownLoader};
 
 type
   TdmMain = class(TDataModule)
@@ -17,7 +17,6 @@ type
     miExit: TMenuItem;
     acSaveResult: TAction;
     dlgSave: TSaveDialog;
-    dl: TclMultiDownLoader;
     procedure acScanUpdate(Sender: TObject);
     procedure DataModuleCreate(Sender: TObject);
     procedure DataModuleDestroy(Sender: TObject);
